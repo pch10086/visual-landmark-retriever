@@ -21,7 +21,8 @@
 ## 3. Reproduction Implementation
 
 - OpenCV SIFT is used for local feature extraction.
-- MiniBatchKMeans is used to train a visual vocabulary.
+- FAISS GPU is used to train larger visual vocabularies and quantize
+  descriptors. MiniBatchKMeans remains as a CPU fallback.
 - Sparse TF-IDF vectors and an inverted-index equivalent matrix are used for
   retrieval.
 - Query features are restricted to the official query bounding box.
@@ -29,7 +30,8 @@
 
 ## 4. Differences From The Paper
 
-- The default vocabulary is smaller than one million words.
+- The default FAISS vocabulary is still smaller than one million words unless a
+  very large run is explicitly configured.
 - OpenCV SIFT replaces the original Hessian-Affine + SIFT pipeline.
 - Oxford5k is reproduced; 100K and 1M distractor experiments are not required.
 - If the historical image archive is unavailable, images must be placed
@@ -48,4 +50,3 @@
 - Discuss failure cases: repeated windows, similar facades, weak viewpoint
   overlap, few local matches.
 - Discuss how vocabulary size affects precision and recall.
-

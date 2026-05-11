@@ -42,9 +42,14 @@ def query_words_from_features(
     descriptors: np.ndarray,
     vocabulary: Vocabulary,
     bbox: tuple[float, float, float, float] | None = None,
+    use_gpu: bool = False,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     if bbox is not None:
         keypoints, descriptors = crop_features_to_bbox(keypoints, descriptors, bbox)
-    words = vocabulary.predict(descriptors)
-    return keypoints, descriptors, words
+    if vocabulary.backend == "faiss":
+        from src.vocabulary import faiss_predict
 
+        words = faiss_predict(vocabulary.centroids, descriptors, use_gpu=use_gpu)
+    else:
+        words = vocabulary.predict(descriptors)
+    return keypoints, descriptors, words

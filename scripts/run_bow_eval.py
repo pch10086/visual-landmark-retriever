@@ -8,7 +8,7 @@ import _bootstrap  # noqa: F401
 from tqdm import tqdm
 
 from src.evaluate import evaluate_query, metrics_to_dict
-from src.features import FeatureSet, load_features
+from src.features import load_features
 from src.index import load_index
 from src.oxford_io import build_image_map, iter_available_queries, load_ground_truth
 from src.paths import FEATURE_DIR, GT_DIR, IMAGE_DIR, METRICS_DIR, VIS_DIR, PROCESSED_DIR, ensure_dirs
@@ -23,6 +23,7 @@ def main() -> None:
     parser.add_argument("--vocab-size", type=int, default=4096)
     parser.add_argument("--max-queries", type=int, default=None)
     parser.add_argument("--visualize", type=int, default=5, help="number of query grids to save")
+    parser.add_argument("--no-gpu", action="store_true", help="force CPU query quantization")
     args = parser.parse_args()
 
     ensure_dirs()
@@ -51,12 +52,7 @@ def main() -> None:
             query_feature.descriptors,
             vocabulary,
             bbox=query.bbox,
-        )
-        query_region_feature = FeatureSet(
-            image_id=query_feature.image_id,
-            image_path=query_feature.image_path,
-            keypoints=query_keypoints,
-            descriptors=query_descriptors,
+            use_gpu=not args.no_gpu,
         )
         results = rank_from_query_words(
             query_words,

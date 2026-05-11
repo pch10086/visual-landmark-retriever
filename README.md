@@ -7,7 +7,7 @@ The implementation is end-to-end from images:
 
 1. download Oxford5k ground truth and images when available;
 2. extract local SIFT or ORB features;
-3. train a visual vocabulary with MiniBatchKMeans;
+3. train a visual vocabulary with FAISS GPU by default, or MiniBatchKMeans as a CPU fallback;
 4. build a TF-IDF Bag-of-Visual-Words index;
 5. evaluate AP/mAP on the official 55 queries;
 6. rerank top results with RANSAC spatial verification;
@@ -19,6 +19,26 @@ Use the existing conda environment:
 
 ```bash
 /opt/miniconda3/envs/myenv/bin/python -m pip install -r requirements.txt
+```
+
+For FAISS GPU on a CUDA server, install FAISS through conda. Pick the CUDA
+package that matches the server driver/runtime:
+
+```bash
+conda install -c pytorch -c nvidia faiss-gpu
+```
+
+Then verify GPU support:
+
+```bash
+python scripts/check_faiss.py
+nvidia-smi
+```
+
+If FAISS GPU is unavailable, install the CPU fallback:
+
+```bash
+pip install -r requirements-faiss-cpu.txt
 ```
 
 All commands below should use:
@@ -63,25 +83,40 @@ oxc1_ashmolean_000000.jpg
 
 ## Full Pipeline
 
-A practical full Oxford5k run:
+FAISS GPU is the default path for vocabulary training and descriptor
+quantization:
 
 ```bash
-/opt/miniconda3/envs/myenv/bin/python scripts/extract_features.py --feature sift --max-features 4000
-/opt/miniconda3/envs/myenv/bin/python scripts/train_vocab.py --feature sift --vocab-size 4096 --max-descriptors 500000
-/opt/miniconda3/envs/myenv/bin/python scripts/build_index.py --feature sift --vocab-size 4096
-/opt/miniconda3/envs/myenv/bin/python scripts/run_bow_eval.py --feature sift --vocab-size 4096
-/opt/miniconda3/envs/myenv/bin/python scripts/run_spatial_eval.py --feature sift --vocab-size 4096 --top-k 100
-/opt/miniconda3/envs/myenv/bin/python scripts/make_report_tables.py --feature sift --vocab-size 4096
+/opt/miniconda3/envs/myenv/bin/python scripts/extract_features.py --feature sift --max-features 6000
+/opt/miniconda3/envs/myenv/bin/python scripts/train_faiss_vocab.py --feature sift --vocab-size 65536 --max-descriptors 2000000
+/opt/miniconda3/envs/myenv/bin/python scripts/build_faiss_index.py --feature sift --vocab-size 65536
+/opt/miniconda3/envs/myenv/bin/python scripts/run_bow_eval.py --feature sift --vocab-size 65536 --visualize 10
+/opt/miniconda3/envs/myenv/bin/python scripts/run_spatial_eval.py --feature sift --vocab-size 65536 --top-k 100 --visualize 10
+/opt/miniconda3/envs/myenv/bin/python scripts/make_report_tables.py --feature sift --vocab-size 65536
 ```
 
 The full feature extraction step processes all 5063 images and can take tens of
 minutes depending on the machine. Larger vocabularies usually improve the
 experiment's resemblance to the paper, but also increase training time and
-memory use. Good follow-up runs are:
+memory use. Good FAISS GPU follow-up runs are:
 
 ```bash
-/opt/miniconda3/envs/myenv/bin/python scripts/train_vocab.py --feature sift --vocab-size 1024 --max-descriptors 300000
-/opt/miniconda3/envs/myenv/bin/python scripts/train_vocab.py --feature sift --vocab-size 8192 --max-descriptors 1000000
+/opt/miniconda3/envs/myenv/bin/python scripts/train_faiss_vocab.py --feature sift --vocab-size 32768 --max-descriptors 1500000
+/opt/miniconda3/envs/myenv/bin/python scripts/train_faiss_vocab.py --feature sift --vocab-size 131072 --max-descriptors 3000000
+```
+
+Use `--no-gpu` on FAISS scripts if the server has FAISS CPU only:
+
+```bash
+/opt/miniconda3/envs/myenv/bin/python scripts/train_faiss_vocab.py --feature sift --vocab-size 8192 --max-descriptors 1000000 --no-gpu
+/opt/miniconda3/envs/myenv/bin/python scripts/build_faiss_index.py --feature sift --vocab-size 8192 --no-gpu
+```
+
+The original MiniBatchKMeans CPU path is still available:
+
+```bash
+/opt/miniconda3/envs/myenv/bin/python scripts/train_vocab.py --feature sift --vocab-size 4096 --max-descriptors 500000
+/opt/miniconda3/envs/myenv/bin/python scripts/build_index.py --feature sift --vocab-size 4096
 ```
 
 ## Smoke Test
@@ -91,8 +126,8 @@ For a quick check on a small subset:
 ```bash
 /opt/miniconda3/envs/myenv/bin/python scripts/prepare_smoke_subset.py --count 120 --force
 /opt/miniconda3/envs/myenv/bin/python scripts/extract_features.py --feature sift --image-dir data/oxford5k/smoke_images --out-dir data/processed/features/smoke_sift --max-features 1000 --force
-/opt/miniconda3/envs/myenv/bin/python scripts/train_vocab.py --feature smoke_sift --vocab-size 256 --max-descriptors 50000 --max-files 120
-/opt/miniconda3/envs/myenv/bin/python scripts/build_index.py --feature smoke_sift --vocab-size 256 --max-files 120
+/opt/miniconda3/envs/myenv/bin/python scripts/train_faiss_vocab.py --feature smoke_sift --vocab-size 256 --max-descriptors 50000 --max-files 120
+/opt/miniconda3/envs/myenv/bin/python scripts/build_faiss_index.py --feature smoke_sift --vocab-size 256 --max-files 120
 /opt/miniconda3/envs/myenv/bin/python scripts/run_bow_eval.py --feature smoke_sift --vocab-size 256 --max-queries 5 --visualize 2
 /opt/miniconda3/envs/myenv/bin/python scripts/run_spatial_eval.py --feature smoke_sift --vocab-size 256 --top-k 20 --max-queries 5 --visualize 2
 /opt/miniconda3/envs/myenv/bin/python scripts/make_report_tables.py --feature smoke_sift --vocab-size 256
@@ -100,9 +135,9 @@ For a quick check on a small subset:
 
 ## Outputs
 
-- `outputs/metrics/bow_sift_4096.json`
-- `outputs/metrics/spatial_sift_4096.json`
-- `outputs/tables/results_sift_4096.md`
+- `outputs/metrics/bow_sift_65536.json`
+- `outputs/metrics/spatial_sift_65536.json`
+- `outputs/tables/results_sift_65536.md`
 - `outputs/visualizations/*.jpg`
 
 ## Reproduction Notes
@@ -112,5 +147,6 @@ to reproduce the exact CVPR 2007 numbers. The main practical differences are
 documented in [docs/reproduction_design.md](docs/reproduction_design.md):
 
 - OpenCV SIFT replaces Hessian-Affine region detection plus SIFT.
-- MiniBatchKMeans uses a smaller default vocabulary than the paper's 1M words.
+- FAISS GPU enables larger vocabularies, but the default is still smaller than
+  the paper's 1M-word setting unless explicitly increased.
 - Oxford5k is the default benchmark; 100K and 1M distractor sets are omitted.

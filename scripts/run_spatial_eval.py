@@ -27,6 +27,7 @@ def main() -> None:
     parser.add_argument("--spatial-weight", type=float, default=0.02)
     parser.add_argument("--max-queries", type=int, default=None)
     parser.add_argument("--visualize", type=int, default=5)
+    parser.add_argument("--no-gpu", action="store_true", help="force CPU query quantization")
     args = parser.parse_args()
 
     ensure_dirs()
@@ -55,6 +56,7 @@ def main() -> None:
             query_feature_full.descriptors,
             vocabulary,
             bbox=query.bbox,
+            use_gpu=not args.no_gpu,
         )
         query_feature = FeatureSet(
             image_id=query_feature_full.image_id,

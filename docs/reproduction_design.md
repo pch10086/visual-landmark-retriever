@@ -32,8 +32,9 @@ modern substitutions:
 
 - OpenCV SIFT is used for local features. If SIFT is unavailable, ORB can be
   used as a fallback for demonstration.
-- MiniBatchKMeans trains a configurable vocabulary, typically 1024-8192 words
-  on a personal machine.
+- FAISS GPU trains a configurable vocabulary by default, typically 32768-131072
+  words on a capable CUDA server. MiniBatchKMeans remains available as a CPU
+  fallback.
 - The primary benchmark is Oxford5k only. The 100K and 1M distractor
   experiments are not reproduced by default.
 - The official VGG page no longer hosts the original image archive, so the
@@ -60,7 +61,15 @@ CVPR 2007 table values.
   per-image feature files so later stages do not recompute features.
 
 - `src/vocabulary.py`
-  Samples descriptors and trains a MiniBatchKMeans visual vocabulary.
+  Stores either a MiniBatchKMeans vocabulary or FAISS centroids and exposes a
+  common `predict` interface for quantization.
+
+- `scripts/train_faiss_vocab.py`
+  Trains visual vocabularies with FAISS. GPU is the default path.
+
+- `scripts/build_faiss_index.py`
+  Quantizes image descriptors with a reusable FAISS GPU nearest-neighbor index,
+  then builds the same TF-IDF matrix used by the evaluation scripts.
 
 - `src/index.py`
   Quantizes descriptors to visual words, builds image histograms, computes
@@ -99,10 +108,10 @@ Typical usage:
 ```bash
 python3 scripts/download_oxford.py
 python3 scripts/extract_features.py --feature sift
-python3 scripts/train_vocab.py --vocab-size 4096
-python3 scripts/build_index.py
-python3 scripts/run_bow_eval.py
-python3 scripts/run_spatial_eval.py --top-k 100
+python3 scripts/train_faiss_vocab.py --vocab-size 65536 --max-descriptors 2000000
+python3 scripts/build_faiss_index.py --vocab-size 65536
+python3 scripts/run_bow_eval.py --vocab-size 65536
+python3 scripts/run_spatial_eval.py --vocab-size 65536 --top-k 100
 python3 scripts/make_report_tables.py
 ```
 
@@ -110,8 +119,8 @@ For a faster smoke test:
 
 ```bash
 python3 scripts/extract_features.py --feature sift --max-images 100
-python3 scripts/train_vocab.py --vocab-size 256 --max-descriptors 50000
-python3 scripts/build_index.py
+python3 scripts/train_faiss_vocab.py --vocab-size 256 --max-descriptors 50000
+python3 scripts/build_faiss_index.py
 python3 scripts/run_bow_eval.py --max-queries 5
 ```
 
@@ -120,4 +129,3 @@ python3 scripts/run_bow_eval.py --max-queries 5
 The code includes small unit tests for AP computation, ground truth parsing,
 and ranking behavior. End-to-end verification is done by running a small
 benchmark subset before running the full Oxford5k pipeline.
-
