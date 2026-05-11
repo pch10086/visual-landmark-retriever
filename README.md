@@ -15,17 +15,17 @@ The implementation is end-to-end from images:
 
 ## Environment
 
-Use the existing conda environment:
+For CPU-only development, install the Python dependencies with:
 
 ```bash
 /opt/miniconda3/envs/myenv/bin/python -m pip install -r requirements.txt
 ```
 
-For FAISS GPU on a CUDA server, install FAISS through conda. Pick the CUDA
-package that matches the server driver/runtime:
+For FAISS GPU on a CUDA server, prefer a clean Python 3.10 conda environment:
 
 ```bash
-conda install -c pytorch -c nvidia faiss-gpu
+conda env create -f environment-faiss-gpu.yml
+conda activate vlr-faiss
 ```
 
 Then verify GPU support:
