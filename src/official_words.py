@@ -27,9 +27,15 @@ def parse_word_geometry_file(path: Path) -> OfficialWordGeometry:
         words.append(int(parts[0]))
         geometry.append([float(value) for value in parts[1:]])
 
+    word_array = np.asarray(words, dtype=np.int32)
+    # VGG official Oxford word ids are 1-based: [1, 1000000].
+    # The sparse matrix code uses Python/NumPy 0-based column ids.
+    if word_array.size:
+        word_array = word_array - 1
+
     return OfficialWordGeometry(
         image_id=path.stem,
-        words=np.asarray(words, dtype=np.int32),
+        words=word_array,
         geometry=np.asarray(geometry, dtype=np.float32),
     )
 
