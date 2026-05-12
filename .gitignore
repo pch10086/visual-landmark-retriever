@@ -53,3 +53,5 @@ outputs/visualizations/
 # Remove these lines if your cloud submission requires the PDFs in git.
 *.pdf
 *.sh
+*.log
+*.pid
