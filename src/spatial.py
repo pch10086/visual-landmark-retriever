@@ -143,3 +143,52 @@ def spatial_rerank(
     ]
     return reranked_top + rest, spatial_scores
 
+
+def spatial_rerank_arrays(
+    query_keypoints: np.ndarray,
+    query_words: np.ndarray,
+    results: list[RetrievalResult],
+    candidate_loader,
+    top_k: int = 100,
+    method: str = "homography",
+    spatial_weight: float = 0.02,
+    max_pairs_per_word: int = 8,
+) -> tuple[list[RetrievalResult], list[SpatialScore]]:
+    top = results[:top_k]
+    rest = results[top_k:]
+    spatial_scores: list[SpatialScore] = []
+
+    for result in top:
+        candidate_keypoints, candidate_words = candidate_loader(result.image_id)
+        q_idx, c_idx = make_word_matches(
+            query_words,
+            candidate_words,
+            max_pairs_per_word=max_pairs_per_word,
+        )
+        if len(q_idx) == 0:
+            inliers = 0
+            matches = 0
+        else:
+            inliers = geometric_inliers(
+                query_keypoints[q_idx],
+                candidate_keypoints[c_idx],
+                method=method,
+            )
+            matches = int(len(q_idx))
+
+        score = float(result.score + spatial_weight * inliers)
+        spatial_scores.append(
+            SpatialScore(
+                image_id=result.image_id,
+                original_score=result.score,
+                inliers=inliers,
+                matches=matches,
+                spatial_score=score,
+            )
+        )
+
+    reranked_top = [
+        RetrievalResult(image_id=item.image_id, score=item.spatial_score)
+        for item in sorted(spatial_scores, key=lambda item: (-item.spatial_score, -item.inliers))
+    ]
+    return reranked_top + rest, spatial_scores

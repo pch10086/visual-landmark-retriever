@@ -30,11 +30,18 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Create report-ready markdown tables.")
     parser.add_argument("--feature", default="sift", help="feature directory name, e.g. sift")
     parser.add_argument("--vocab-size", type=int, default=4096)
+    parser.add_argument("--official", action="store_true", help="summarize official hesaff_sift results")
     args = parser.parse_args()
 
     ensure_dirs()
-    bow = load_json(METRICS_DIR / f"bow_{args.feature}_{args.vocab_size}.json")
-    spatial = load_json(METRICS_DIR / f"spatial_{args.feature}_{args.vocab_size}.json")
+    if args.official:
+        bow = load_json(METRICS_DIR / "official_bow_1m.json")
+        spatial = load_json(METRICS_DIR / "official_spatial_1m.json")
+        out_name = "results_official_1m.md"
+    else:
+        bow = load_json(METRICS_DIR / f"bow_{args.feature}_{args.vocab_size}.json")
+        spatial = load_json(METRICS_DIR / f"spatial_{args.feature}_{args.vocab_size}.json")
+        out_name = f"results_{args.feature}_{args.vocab_size}.md"
 
     text = "# Reproduction Results\n\n"
     text += "## Main Metrics\n\n"
@@ -53,7 +60,7 @@ def main() -> None:
     text += "- This reproduction uses OpenCV local features and MiniBatchKMeans.\n"
     text += "- Vocabulary size is smaller than the paper's 1M-word setting by default.\n"
 
-    out_path = TABLES_DIR / f"results_{args.feature}_{args.vocab_size}.md"
+    out_path = TABLES_DIR / out_name
     out_path.write_text(text, encoding="utf-8")
     print(text)
     print(f"saved table: {out_path}")

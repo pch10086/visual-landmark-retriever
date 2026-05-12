@@ -39,3 +39,33 @@ def list_official_word_files(root: Path) -> list[Path]:
         return []
     return sorted(path for path in root.rglob("*") if path.is_file() and path.suffix == ".txt")
 
+
+def official_geometry_to_keypoints(geometry: np.ndarray) -> np.ndarray:
+    """Convert official [x, y, A, B, C] geometry to the project's keypoint layout."""
+    if geometry.size == 0:
+        return np.empty((0, 7), dtype=np.float32)
+    keypoints = np.zeros((len(geometry), 7), dtype=np.float32)
+    keypoints[:, 0] = geometry[:, 0]
+    keypoints[:, 1] = geometry[:, 1]
+    # Approximate scale from ellipse area. This is only used for compatibility
+    # with visualization/debug code; spatial RANSAC uses x/y coordinates.
+    a = geometry[:, 2]
+    b = geometry[:, 3]
+    c = geometry[:, 4]
+    det = np.maximum(a * c - b * b, 1e-12)
+    keypoints[:, 2] = np.sqrt(1.0 / np.sqrt(det)).astype(np.float32)
+    return keypoints
+
+
+def crop_official_to_bbox(
+    words: np.ndarray,
+    geometry: np.ndarray,
+    bbox: tuple[float, float, float, float],
+) -> tuple[np.ndarray, np.ndarray]:
+    if len(words) == 0:
+        return words, geometry
+    x1, y1, x2, y2 = bbox
+    xs = geometry[:, 0]
+    ys = geometry[:, 1]
+    mask = (xs >= x1) & (xs <= x2) & (ys >= y1) & (ys <= y2)
+    return words[mask], geometry[mask]

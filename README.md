@@ -119,6 +119,23 @@ The original MiniBatchKMeans CPU path is still available:
 /opt/miniconda3/envs/myenv/bin/python scripts/build_index.py --feature sift --vocab-size 4096
 ```
 
+## Official HesAff-SIFT / 1M Words Pipeline
+
+To evaluate with the Oxford-provided Hessian-Affine SIFT word assignments and
+geometry, download the official word files and build the official index:
+
+```bash
+python scripts/download_oxford.py --official-words
+python scripts/build_official_index.py
+python scripts/run_official_bow_eval.py --visualize 20
+python scripts/run_official_spatial_eval.py --top-k 1000 --visualize 20
+python scripts/make_report_tables.py --official
+```
+
+This path skips OpenCV SIFT extraction and FAISS vocabulary training. It uses
+the official `hesaff_sift` 1M visual word assignments, so it is closer to the
+paper's feature/quantization setup for Oxford5k.
+
 ## Smoke Test
 
 For a quick check on a small subset:
